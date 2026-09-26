@@ -3488,3 +3488,19 @@
   </script>
 </body>
 </html>
+// 手动添加固定歌曲
+setTimeout(() => {
+    if (typeof songs !== 'undefined') {
+        songs.push({
+            id: "my-fixed-song-1",
+            title: "游园会-周杰伦", // 网页上显示的歌名
+            artist: "我自己", // 歌手名
+            audioFile: "游园会-周杰伦.mp3", // ⚠️这里必须和你上传的音乐文件名一模一样！
+            coverFile: null,
+            lrcFile: null,
+            liked: false,
+            fileStatus: { audio: true, lyric: false, cover: false }
+        });
+        if (typeof renderAll === 'function') renderAll();
+    }
+}, 1000); // 延迟1秒执行，等网页加载完
