@@ -1742,7 +1742,7 @@
           </svg>
         </div>
         <div>
-          <div class="brand-cn">开阳云音乐</div>
+          <div class="brand-cn">我的云音乐</div>
           <div class="brand-en">KaiYang Cloud Music</div>
         </div>
       </div>
@@ -1913,7 +1913,7 @@
       <div id="playerLeft" class="player-left" title="点击进入歌词界面">
         <div id="miniCover" class="mini-cover-player"></div>
         <div class="mini-info">
-          <div id="miniTitle" class="mini-title">开阳云音乐</div>
+          <div id="miniTitle" class="mini-title">我的云音乐</div>
           <div id="miniArtist" class="mini-artist">KaiYang Cloud Music</div>
         </div>
         <button id="likeBtn" class="icon-btn" title="喜欢">♡</button>
@@ -1973,7 +1973,7 @@
       </div>
 
       <div class="lyrics-side">
-        <h1 id="lyricTitle" class="lyric-song-title">开阳云音乐</h1>
+        <h1 id="lyricTitle" class="lyric-song-title">我的云音乐</h1>
         <div class="lyric-song-meta">
           <span id="lyricArtist">歌手：KaiYang Cloud Music</span>
           <span id="lyricAlbum">专辑：Local Music</span>
@@ -2003,7 +2003,7 @@
 
   <script>
     /*
-      开阳云音乐 - 本地音乐歌词播放器
+      云音乐 - 本地音乐歌词播放器
       核心原则：
       1. 本地读取，不上传；
       2. mp3 / lrc / 图片按同名文件组合；
@@ -2746,8 +2746,8 @@
       const song = getCurrentSong();
 
       if (!song) {
-        miniTitle.textContent = "开阳云音乐";
-        miniArtist.textContent = "KaiYang Cloud Music";
+        miniTitle.textContent = "我的云音乐";
+        miniArtist.textContent = "Music";
         likeBtn.textContent = "♡";
         likeBtn.classList.remove("liked");
         playBtn.textContent = "▶";
@@ -2771,8 +2771,8 @@
       const song = getCurrentSong();
 
       if (!song) {
-        lyricTitle.textContent = "开阳云音乐";
-        lyricArtist.textContent = "歌手：KaiYang Cloud Music";
+        lyricTitle.textContent = "我的云音乐";
+        lyricArtist.textContent = "歌手： Music";
         lyricAlbum.textContent = "专辑：Local Music";
         renderDefaultRecordCover();
         lyricsList.innerHTML = `<div class="lyric-empty">暂无歌词</div>`;
@@ -3058,8 +3058,8 @@
       durationTimeEl.textContent = "00:00";
       updateRangeFill(progressRange);
 
-      miniTitle.textContent = "开阳云音乐";
-      miniArtist.textContent = "KaiYang Cloud Music";
+      miniTitle.textContent = "我的云音乐";
+      miniArtist.textContent = " Music";
       renderDefaultMiniCover();
       renderDefaultRecordCover();
       lyricsList.innerHTML = `<div class="lyric-empty">暂无歌词</div>`;
