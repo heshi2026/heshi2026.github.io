@@ -2850,11 +2850,11 @@
         activeLyricIndex = -1;
 
         if (!song.audioUrl) {
-          song.audioUrl = URL.createObjectURL(song.audioFile);
-        }
+  song.audioUrl = song.audioFile; // 直接告诉它去读这个文件名
+}
 
-        audio.src = song.audioUrl;
-        audio.load();
+audio.src = song.audioUrl;
+audio.load();
 
         progressRange.value = 0;
         progressRange.max = Number.isFinite(song.duration) ? song.duration : 100;
