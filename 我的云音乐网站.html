@@ -2081,7 +2081,8 @@
 
     const toast = document.getElementById("toast");
 
-    let songs = [{
+    let songs = [
+    {
         id: "my-song-1",
         title: "游园会",
         artist: "周杰伦",
@@ -2090,7 +2091,18 @@
         lrcFile: null,
         liked: false,
         fileStatus: { audio: true, lyric: false, cover: false }
-    }];
+    },
+    {
+        id: "my-song-2",
+        title: "舍得",
+        artist: "王唯旖",
+        audioFile: "舍得.mp3",
+        coverFile: null,
+        lrcFile: null,
+        liked: false,
+        fileStatus: { audio: true, lyric: false, cover: false }
+    }
+];
     let currentId = null;
     let activeView = "home";
     let recentIds = [];
