@@ -3494,24 +3494,6 @@ audio.load();
     window.addEventListener("beforeunload", () => {
       revokeAllObjectUrls();
     });
-    // 强行添加歌曲的终极补丁
-setTimeout(() => {
-    if (typeof songs !== 'undefined') {
-        songs.push({
-            id: "my-song-1",
-            title: "游园会",
-            artist: "周杰伦",
-            audioFile: "园游会-周杰伦.mp3",
-            coverFile: null,
-            lrcFile: null,
-            liked: false,
-            fileStatus: { audio: true, lyric: false, cover: false }
-        });
-    }
-    if (typeof renderAll === 'function') renderAll();
-    if (typeof renderHome === 'function') renderHome();
-    if (typeof renderDefaultMiniCover === 'function') renderDefaultMiniCover();
-}, 1000);
   </script>
 </body>
 </html>
