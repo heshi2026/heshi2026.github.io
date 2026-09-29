@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>合成大丑照</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", sans-serif;
+    background: #1a1a2e;
+    user-select: none;
+    touch-action: none;
+  }
+  #game-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    background: #16213e;
+    overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hint {
+    position: absolute;
+    top: 12px;
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    font-size: 14px;
+    letter-spacing: 1px;
+    opacity: .75;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #loading {
+    position: absolute;
+    inset: 0;
+    background: #16213e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffd250;
+    font-size: 20px;
+    z-index: 100;
+  }
+  #win {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.85);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+  }
+  #win h2 {
+    font-size: 32px;
+    color: #ffd250;
+    margin-bottom: 16px;
+    text-shadow: 0 0 20px #ffd250;
+    animation: glow 1s ease-in-out infinite alternate;
+  }
+  @keyframes glow {
+    from { text-shadow: 0 0 20px #ffd250; }
+    to   { text-shadow: 0 0 40px #ff5c8a, 0 0 60px #ffd250; }
+  }
+  #win-img {
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 6px solid #ffd250;
+    margin-bottom: 20px;
+    box-shadow: 0 0 40px rgba(255, 210, 80, .8);
+    animation: pop .6s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes pop {
+    0%   { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+  #win p { font-size: 16px; margin-bottom: 24px; opacity: .9; }
+  #save-btn {
+    background: #ff5c8a;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 40px;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 16px rgba(255, 92, 138, .5);
+  }
+</style>
+</head>
+<body>
+
+<div id="game-wrap">
+  <canvas id="c"></canvas>
+  <div class="hint">拖动小球到上方，松手掉落</div>
+  <div id="loading">加载照片中...</div>
+
+  <div id="win">
+    <h2>🏆 挑战成功！</h2>
+    < img id="win-img" src="" alt="">
+    <p>恭喜你解锁了终极丑照！</p >
+    <button id="save-btn">保存到相册</button>
+  </div>
+</div>
+
+<script>
+  // ================= 写死 7 张照片文件名 =================
+  const FIXED_IMAGES = [
+    '1.jpg', '2.jpg', '3.jpg',
+    '4.jpg', '5.jpg', '6.jpg', '7.jpg'
+  ];
+
+  // ================= 基础配置 =================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    const rect = document.getElementById('game-wrap').getBoundingClientRect();
+    W = canvas.width = rect.width * window.devicePixelRatio;
+    H = canvas.height = rect.height * window.devicePixelRatio;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const LEVELS = [80, 100, 125, 150, 175, 200, 220];
+  const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#4dabf7','#9775fa','#f783ac'];
+
+  const images = [];
+  let imgsReady = false;
+
+  const GRAVITY = 0.55;
+  const FRICTION = 0.99;
+  const BOUNCE = 0.35;
+  const WALL_BOUNCE = 0.5;
+
+  let balls = [];
+  let currentLevel = 0;
+  let holding = false;
+  let holdX = 0;
+  let holdY = 60;
+  let gameOver = false;
+  let mergedThisFrame = new Set();
+  let frame = 0;
+
+  // ================= 加载固定图片 =================
+  function loadImages() {
+    let loaded = 0;
+    FIXED_IMAGES.forEach((src, i) => {
+      const img = new Image();
+      img.onload = () => {
+        images[i] = img;
+        loaded++;
+        if (loaded === FIXED_IMAGES.length) {
+          imgsReady = true;
+          document.getElementById('loading').style.display = 'none';
+          startGame();
+        }
+      };
+      img.onerror = () => {
+        console.warn('图片加载失败：', src);
+        loaded++;
+        if (loaded === FIXED_IMAGES.length) {
+          imgsReady = true;
+          document.getElementById('loading').style.display = 'none';
+          startGame();
+        }
+      };
+      img.src = src;
+    });
+  }
+  loadImages();
+
+  // ================= 游戏逻辑 =================
+  function startGame() {
+    balls = [];
+    currentLevel = 0;
+    gameOver = false;
+    spawnNewBall();
+  }
+
+  function spawnNewBall() {
+    currentLevel = 0;
+    holdX = W / (2 * window.devicePixelRatio);
+    holdY = 60;
+    holding = true;
+  }
+
+  function dropBall() {
+    if (!holding) return;
+    const r = LEVELS[currentLevel] / 2;
+    balls.push({
+      x: holdX, y: holdY,
+      vx: 0, vy: 0,
+      r, level: currentLevel,
+      img: images[currentLevel],
+      spawnFrame: frame
+    });
+    holding = false;
+    spawnNewBall();
+  }
+
+  function physics() {
+    frame++;
+    mergedThisFrame.clear();
+
+    for (const b of balls) {
+      b.vy += GRAVITY;
+      b.vx *= FRICTION;
+      b.vy *= FRICTION;
+      b.x += b.vx;
+      b.y += b.vy;
+    }
+
+    const w = W / window.devicePixelRatio;
+    const h = H / window.devicePixelRatio;
+    for (const b of balls) {
+      if (b.x - b.r < 0) { b.x = b.r; b.vx = -b.vx * WALL_BOUNCE; }
+      if (b.x + b.r > w) { b.x = w - b.r; b.vx = -b.vx * WALL_BOUNCE; }
+      if (b.y + b.r > h) { b.y = h - b.r; b.vy = -b.vy * BOUNCE; b.vx *= 0.92; }
+    }
+
+    for (let i = 0; i < balls.length; i++) {
+      for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], b = balls[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = a.r + b.r;
+
+        if (dist < minDist && dist > 0) {
+          if (a.level === b.level && a.level < 6 && !mergedThisFrame.has(a) && !mergedThisFrame.has(b)) {
+            mergedThisFrame.add(a);
+            mergedThisFrame.add(b);
+            mergeBalls(a, b);
+            break;
+          }
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = minDist - dist;
+          a.x -= nx * overlap / 2;
+          a.y -= ny * overlap / 2;
+          b.x += nx * overlap / 2;
+          b.y += ny * overlap / 2;
+
+          const dvx = b.vx - a.vx;
+          const dvy = b.vy - a.vy;
+          const dot = dvx * nx + dvy * ny;
+          if (dot < 0) {
+            const impulse = -(1 + BOUNCE) * dot / 2;
+            a.vx -= impulse * nx;
+            a.vy -= impulse * ny;
+            b.vx += impulse * nx;
+            b.vy += impulse * ny;
+          }
+        }
+      }
+    }
+
+    balls = balls.filter(b => !b.merged);
+  }
+
+  function mergeBalls(a, b) {
+    const newLevel = a.level + 1;
+    const newBall = {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2,
+      vx: (a.vx + b.vx) / 2,
+      vy: (a.vy + b.vy) / 2,
+      r: LEVELS[newLevel] / 2,
+      level: newLevel,
+      img: images[newLevel],
+      spawnFrame: frame
+    };
+    a.merged = true;
+    b.merged = true;
+    balls.push(newBall);
+
+    if (newLevel === 6) {
+      setTimeout(showWin, 400);
+    }
+  }
+
+  function draw() {
+    const w = W / window.devicePixelRatio;
+    const h = H / window.devicePixelRatio;
+    ctx.clearRect(0, 0, w, h);
+
+    if (holding && !gameOver) {
+      const r = LEVELS[currentLevel] / 2;
+      drawBall(holdX, holdY, r, images[currentLevel], currentLevel);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(holdX, holdY + r);
+      ctx.lineTo(holdX, h);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const b of balls) {
+      drawBall(b.x, b.y, b.r, b.img, b.level);
+    }
+  }
+
+  function drawBall(x, y, r, img, level) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.shadowColor = 'rgba(0,0,0,.3)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = COLORS[level];
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.clip();
+    if (img) {
+      const scale = Math.max((r * 2) / img.width, (r * 2) / img.height);
+      const iw = img.width * scale;
+      const ih = img.height * scale;
+      ctx.drawImage(img, x - iw / 2, y - ih / 2, iw, ih);
+    } else {
+      ctx.fillStyle = COLORS[level];
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(x, y, r - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,.65)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ================= 输入控制 =================
+  canvas.addEventListener('mousedown', (e) => {
+    if (!holding) return;
+    const rect = canvas.getBoundingClientRect();
+    holdX = e.clientX - rect.left;
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (!holding) return;
+    const rect = canvas.getBoundingClientRect();
+    holdX = e.clientX - rect.left;
+  });
+  canvas.addEventListener('mouseup', dropBall);
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (!holding) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    holdX = e.touches[0].clientX - rect.left;
+  }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => {
+    if (!holding) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    holdX = e.touches[0].clientX - rect.left;
+  }, { passive: false });
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    dropBall();
+  }, { passive: false });
+
+  // ================= 胜利 =================
+  function showWin() {
+    gameOver = true;
+    document.getElementById('win-img').src = images[6] ? images[6].src : '';
+    document.getElementById('win').style.display = 'flex';
+    spawnConfetti();
+  }
+
+  function spawnConfetti() {
+    if (!document.getElementById('confetti-style')) {
+      const s = document.createElement('style');
+      s.id = 'confetti-style';
+      s.textContent = `@keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }`;
+      document.head.appendChild(s);
+    }
+    for (let i = 0; i < 60; i++) {
+      const c = document.createElement('div');
+      c.style.cssText = `
+        position:fixed;top:-20px;left:${Math.random()*100}vw;
+        width:8px;height:14px;background:${COLORS[i%COLORS.length]};
+        z-index:300;pointer-events:none;border-radius:2px;
+        animation:fall ${2+Math.random()*2}s linear forwards;
+      `;
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 4500);
+    }
+  }
+
+  document.getElementById('save-btn').addEventListener('click', () => {
+    const poster = document.createElement('canvas');
+    poster.width = 600;
+    poster.height = 800;
+    const pctx = poster.getContext('2d');
+    pctx.fillStyle = '#16213e';
+    pctx.fillRect(0, 0, 600, 800);
+    pctx.fillStyle = '#ffd250';
+    pctx.font = 'bold 40px sans-serif';
+    pctx.textAlign = 'center';
+    pctx.fillText('🏆 终极丑照', 300, 100);
+    if (images[6]) {
+      const size = 400;
+      pctx.save();
+      pctx.beginPath();
+      pctx.arc(300, 400, size / 2, 0, Math.PI * 2);
+      pctx.clip();
+      const scale = Math.max(size / images[6].width, size / images[6].height);
+      const iw = images[6].width * scale;
+      const ih = images[6].height * scale;
+      pctx.drawImage(images[6], 300 - iw / 2, 400 - ih / 2, iw, ih);
+      pctx.restore();
+      pctx.beginPath();
+      pctx.arc(300, 400, size / 2, 0, Math.PI * 2);
+      pctx.strokeStyle = '#ffd250';
+      pctx.lineWidth = 8;
+      pctx.stroke();
+    }
+    pctx.fillStyle = '#fff';
+    pctx.font = 'bold 28px sans-serif';
+    pctx.fillText('我合成出了终极丑照！', 300, 680);
+    pctx.font = '20px sans-serif';
+    pctx.fillStyle = '#aaa';
+    pctx.fillText('来挑战我吧 🔥', 300, 730);
+
+    const link = document.createElement('a');
+    link.download = '终极丑照.png';
+    link.href = poster.toDataURL('image/png');
+    link.click();
+  });
+
+  // ================= 主循环 =================
+  function loop() {
+    if (imgsReady && !gameOver) {
+      physics();
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+</script>
+</body>
+</html>
