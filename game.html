@@ -189,13 +189,13 @@
   const FRICTION = 0.99;
   const BOUNCE = 0.35;
   const WALL_BOUNCE = 0.5;
-  const TOP_LIMIT = 120;   // 顶部判定线，球顶到这里算堆满
+  const TOP_LIMIT = 30;    // 顶部判定线，很小，避免误判
 
   let balls = [];
   let currentLevel = 0;
   let holding = false;
   let holdX = 0;
-  let holdY = 60;
+  let holdY = 140;         // 生成位置下移
   let gameOver = false;
   let mergedThisFrame = new Set();
   let frame = 0;
@@ -245,7 +245,7 @@
   function spawnNewBall() {
     currentLevel = Math.floor(Math.random() * 3);
     holdX = W / (2 * window.devicePixelRatio);
-    holdY = 60;
+    holdY = 140;           // 关键：生成位置下移
     holding = true;
   }
 
@@ -267,7 +267,6 @@
     document.getElementById('scoreBoard').textContent = score;
   }
 
-  // 检查胜利：场上出现两颗 7 级球
   function checkWin() {
     if (gameOver) return false;
     let count = 0;
@@ -283,13 +282,15 @@
     return false;
   }
 
-  // 检查输：球静止后，有球顶到顶部区域
+  // 输的判定：任意球顶越过顶部线，就判输（不要求静止）
   function checkLose() {
     if (gameOver) return false;
     if (balls.length < 3) return false;
-    
-    // 再看有没有球顶到顶部
+
     for (const b of balls) {
+      // 跳过刚生成不久的球（30 帧内不判）
+      if (frame - b.spawnFrame < 30) continue;
+      // 球顶越过判定线
       if (b.y - b.r < TOP_LIMIT) {
         setTimeout(showLose, 300);
         return true;
@@ -376,7 +377,6 @@
 
     checkWin();
 
-    // 每 30 帧检查一次输（减少性能开销）
     loseCheckTimer++;
     if (loseCheckTimer > 30) {
       loseCheckTimer = 0;
@@ -407,13 +407,6 @@
     const w = W / window.devicePixelRatio;
     const h = H / window.devicePixelRatio;
     ctx.clearRect(0, 0, w, h);
-
-    // 画顶部判定线（可选，想让玩家看到就保留）
-    // ctx.strokeStyle = 'rgba(255,80,80,.3)';
-    // ctx.beginPath();
-    // ctx.moveTo(0, TOP_LIMIT);
-    // ctx.lineTo(w, TOP_LIMIT);
-    // ctx.stroke();
 
     if (holding && !gameOver) {
       const r = LEVELS[currentLevel] / 2;
@@ -538,7 +531,6 @@
     }
   }
 
-  // 保存海报
   document.getElementById('save-btn').addEventListener('click', () => {
     const poster = document.createElement('canvas');
     poster.width = 600;
@@ -583,7 +575,6 @@
     link.click();
   });
 
-  // 再来一局
   document.getElementById('retry-btn').addEventListener('click', () => {
     startGame();
   });
