@@ -156,6 +156,7 @@
   let gameOver = false;
   let mergedThisFrame = new Set();
   let frame = 0;
+  let loopId = null;
 
   // ================= 加载固定图片 =================
   function loadImages() {
@@ -237,18 +238,24 @@
     for (let i = 0; i < balls.length; i++) {
       for (let j = i + 1; j < balls.length; j++) {
         const a = balls[i], b = balls[j];
+        if (a.merged || b.merged) continue;
+
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const dist = Math.hypot(dx, dy);
         const minDist = a.r + b.r;
 
         if (dist < minDist && dist > 0) {
-          if (a.level === b.level && a.level < 6 && !mergedThisFrame.has(a) && !mergedThisFrame.has(b)) {
+          // 合成
+          if (a.level === b.level && a.level < 6 &&
+              !mergedThisFrame.has(a) && !mergedThisFrame.has(b)) {
             mergedThisFrame.add(a);
             mergedThisFrame.add(b);
             mergeBalls(a, b);
-            break;
+            return;   // 直接返回，这一帧不再继续算
           }
+
+          // 物理碰撞
           const nx = dx / dist;
           const ny = dy / dist;
           const overlap = minDist - dist;
@@ -290,8 +297,12 @@
     b.merged = true;
     balls.push(newBall);
 
+    // 合成了第 7 级 → 胜利
     if (newLevel === 6) {
-      setTimeout(showWin, 400);
+      // 先让这一帧的画面正常画出来，再弹窗
+      requestAnimationFrame(() => {
+        setTimeout(showWin, 300);
+      });
     }
   }
 
@@ -355,38 +366,44 @@
 
   // ================= 输入控制 =================
   canvas.addEventListener('mousedown', (e) => {
-    if (!holding) return;
+    if (!holding || gameOver) return;
     const rect = canvas.getBoundingClientRect();
     holdX = e.clientX - rect.left;
   });
   canvas.addEventListener('mousemove', (e) => {
-    if (!holding) return;
+    if (!holding || gameOver) return;
     const rect = canvas.getBoundingClientRect();
     holdX = e.clientX - rect.left;
   });
-  canvas.addEventListener('mouseup', dropBall);
+  canvas.addEventListener('mouseup', () => {
+    if (gameOver) return;
+    dropBall();
+  });
 
   canvas.addEventListener('touchstart', (e) => {
-    if (!holding) return;
+    if (!holding || gameOver) return;
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     holdX = e.touches[0].clientX - rect.left;
   }, { passive: false });
   canvas.addEventListener('touchmove', (e) => {
-    if (!holding) return;
+    if (!holding || gameOver) return;
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     holdX = e.touches[0].clientX - rect.left;
   }, { passive: false });
   canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
+    if (gameOver) return;
     dropBall();
   }, { passive: false });
 
   // ================= 胜利 =================
   function showWin() {
+    if (gameOver) return;    // 防重复
     gameOver = true;
-    document.getElementById('win-img').src = images[6] ? images[6].src : '';
+    const winImg = document.getElementById('win-img');
+    if (images[6]) winImg.src = images[6].src;
     document.getElementById('win').style.display = 'flex';
     spawnConfetti();
   }
@@ -398,16 +415,16 @@
       s.textContent = `@keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }`;
       document.head.appendChild(s);
     }
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 30; i++) {
       const c = document.createElement('div');
       c.style.cssText = `
         position:fixed;top:-20px;left:${Math.random()*100}vw;
         width:8px;height:14px;background:${COLORS[i%COLORS.length]};
         z-index:300;pointer-events:none;border-radius:2px;
-        animation:fall ${2+Math.random()*2}s linear forwards;
+        animation:fall ${3+Math.random()*2}s linear forwards;
       `;
       document.body.appendChild(c);
-      setTimeout(() => c.remove(), 4500);
+      setTimeout(() => c.remove(), 5500);
     }
   }
 
@@ -452,13 +469,15 @@
     link.click();
   });
 
-  // ================= 主循环 =================
+  // ================= 主循环（胜利后直接停）=================
   function loop() {
-    if (imgsReady && !gameOver) {
+    if (gameOver) return;   // 彻底停掉，不再跑
+
+    if (imgsReady) {
       physics();
       draw();
     }
-    requestAnimationFrame(loop);
+    loopId = requestAnimationFrame(loop);
   }
   loop();
 </script>
