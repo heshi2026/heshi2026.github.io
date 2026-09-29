@@ -156,7 +156,6 @@
   let gameOver = false;
   let mergedThisFrame = new Set();
   let frame = 0;
-  let loopId = null;
 
   // ================= 加载固定图片 =================
   function loadImages() {
@@ -189,13 +188,13 @@
   // ================= 游戏逻辑 =================
   function startGame() {
     balls = [];
-    currentLevel = 0;
     gameOver = false;
     spawnNewBall();
   }
 
+  // 关键改动：每次随机从 7 张里选一张
   function spawnNewBall() {
-    currentLevel = 0;
+    currentLevel = Math.floor(Math.random() * 7);   // 0 ~ 6，对应第 1 ~ 7 张
     holdX = W / (2 * window.devicePixelRatio);
     holdY = 60;
     holding = true;
@@ -252,7 +251,7 @@
             mergedThisFrame.add(a);
             mergedThisFrame.add(b);
             mergeBalls(a, b);
-            return;   // 直接返回，这一帧不再继续算
+            return;
           }
 
           // 物理碰撞
@@ -299,7 +298,6 @@
 
     // 合成了第 7 级 → 胜利
     if (newLevel === 6) {
-      // 先让这一帧的画面正常画出来，再弹窗
       requestAnimationFrame(() => {
         setTimeout(showWin, 300);
       });
@@ -400,7 +398,7 @@
 
   // ================= 胜利 =================
   function showWin() {
-    if (gameOver) return;    // 防重复
+    if (gameOver) return;
     gameOver = true;
     const winImg = document.getElementById('win-img');
     if (images[6]) winImg.src = images[6].src;
@@ -469,15 +467,15 @@
     link.click();
   });
 
-  // ================= 主循环（胜利后直接停）=================
+  // ================= 主循环 =================
   function loop() {
-    if (gameOver) return;   // 彻底停掉，不再跑
+    if (gameOver) return;
 
     if (imgsReady) {
       physics();
       draw();
     }
-    loopId = requestAnimationFrame(loop);
+    requestAnimationFrame(loop);
   }
   loop();
 </script>
